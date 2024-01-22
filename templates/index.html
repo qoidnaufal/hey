@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block title %}Index{% endblock %}
+
+{% block head %}
+<script src="https://unpkg.com/htmx.org/dist/ext/json-enc.js"></script>
+{% endblock %}
+
+{% block content %}
+<h1>Ws-Chalk</h1>
+<form id="login-register-form">
+	<input placeholder="Your name..." required type=text name="user_name">
+	<button hx-post="/register"
+		hx-trigger="click"
+		hx-ext="json-enc"
+		hx-target="#response"
+		hx-swap="innerHTML">Register</button>
+</form>
+<div id="response"></div>
+{% endblock %}
