@@ -1,24 +1,86 @@
 {% extends "base.html" %}
 
-{% block title %}Index{% endblock %}
+{% block title %}Login / Register{% endblock %}
 
 {% block head %}
 <script src="https://unpkg.com/htmx.org/dist/ext/json-enc.js"></script>
+<script src="https://unpkg.com/htmx.org/dist/ext/response-targets.js"></script>
+<style>
+	html,body {
+	  height:100%;
+	  width:100%;
+	  margin:auto;
+	  background-color: #222222;
+	}
+	body , body {
+	  display:table;
+	  width: 27%;
+		margin-top: 30vh;
+	}
+	.container {
+	  display: flex;
+	  flex-direction: column;
+	  margin:auto;
+	  background-color: black;
+	  padding: 10px 10px 60px 10px;
+	  border-radius: 10px;
+	}
+	#login-register-form {
+	  display: flex;
+	  flex-direction: column;
+	}
+	button {
+		text-align: center;
+		width: 60px;
+	  height: 25px;
+	  border-radius: 10px;
+	  border: none;
+	  margin-top: 0.7em;
+	  background-color: #0CAFFF;
+	}
+	button:hover {
+	  background-color: #ACE1AF;
+	}
+	#submit-button {
+		width: auto;
+		justify-content: center;
+		display: block;
+	}
+	input {
+	  margin-top: 0.3em;
+	  height: 30px;
+	  background-color: #E5E4E2;
+	}
+	input:focus {
+	  background-color: white;
+	}
+	input:hover {
+	  background-color: white;
+	}
+	#response, h1 {
+	  color: white;
+		text-align: center;
+	}
+</style>
 {% endblock %}
 
 {% block content %}
-<h1>Ws-Chalk</h1>
-<form id="login-register-form">
-	<input placeholder="Your name..." required type=text name="user_name">
-  <input placeholder="Your password..." required type=password name="password">
-	<button hx-post="/register"
-		hx-trigger="click"
-		hx-ext="json-enc"
-		hx-target="#response"
-		hx-swap="innerHTML">Register</button>
-  <button hx-post="/login"
-    hx-trigger="click"
-    hx-ext="json-enc">Login</button>
-</form>
-<div id="response"></div>
+<div class="container">
+	<h1>Welcome to Ws-Chalk</h1>
+	<form id="login-register-form" hx-ext="json-enc, response-targets">
+		<input placeholder="Your name..." required type="text" name="user_name">
+		<input placeholder="Your email..." required type="email" name="email">
+	  <input placeholder="Your password..." required type="password" name="password">
+		<div id="submit-button">
+			<button hx-post="/register"
+				hx-target="#response"
+				hx-target-error="#response"
+				hx-swap="innerHTML">Register</button>
+		  <button hx-post="/login"
+				hx-target-error="#response"
+				hx-swap="innerHTML">Login</button>
+		</div>
+		<div id="response"></div>
+	</form>
+</div>
 {% endblock %}

@@ -1,17 +1,16 @@
 use std::{
     collections::HashMap,
-    // path::PathBuf,
     sync::{Arc, RwLock},
 };
 
 use axum::{
     extract::ws::Message,
+    handler::HandlerWithoutStateExt,
     routing::{get, post},
     Extension, Router,
 };
 
 use tokio::sync::mpsc;
-// use tower_http::services::ServeDir;
 
 mod routes;
 mod ws_model;
@@ -20,7 +19,9 @@ type RegisteredUsers = Arc<RwLock<HashMap<String, User>>>;
 
 #[derive(Clone)]
 pub struct User {
+    pub uuid: String,
     pub user_name: String,
+    pub email: String,
     pub password: String,
     pub sender: Option<mpsc::UnboundedSender<Message>>,
 }
@@ -29,15 +30,13 @@ pub struct User {
 async fn main() -> shuttle_axum::ShuttleAxum {
     let registered_users = RegisteredUsers::default();
 
-    // let directory = PathBuf::from("./templates");
-
     let router = Router::new()
-        .route("/", get(routes::login_register_handler))
-        .route("/health", get(routes::health_handler))
         .route("/register", post(routes::register_handler))
-        .route("/:uuid", get(routes::ws_handler))
-        .layer(Extension(registered_users));
-    // .fallback_service(ServeDir::new(directory));
+        .route("/login", post(routes::login_handler))
+        .route("/:email", get(routes::get_chat_page))
+        .route("/ws/:email", get(routes::ws_handler))
+        .layer(Extension(registered_users))
+        .fallback_service(routes::login_register_page.into_service());
 
     Ok(router.into())
 }
