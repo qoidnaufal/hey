@@ -3,18 +3,78 @@
 {% block title %}Index{% endblock %}
 
 {% block head %}
+<meta charset="UTF-8" />
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<script src="https://unpkg.com/htmx.org/dist/ext/ws.js"></script>
 <script src="https://unpkg.com/htmx.org/dist/ext/json-enc.js"></script>
+<style>
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
+      Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+    background-color: #333;
+    color: white;
+  }
+
+  h1 {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
+      Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+  }
+
+  .chat {
+    height: 90vh;
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    gap: 2rem;
+  }
+
+  #log {
+    color: white;
+    overflow: scroll;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    gap: 5px;
+  }
+
+  .inp {
+    display: flex;
+  }
+
+  .nom {
+    font-weight: bold;
+  }
+
+  .bubble {
+    line-height: 1.2;
+  }
+
+  #input {
+    flex-grow: 1;
+    appearance: none;
+    background-color: #555;
+    border: none;
+    border-radius: 10px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
+      Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+    font-size: 16px;
+    color: white;
+    padding: 10px;
+  }
+
+  #btn {}
+</style>
 {% endblock %}
 
 {% block content %}
-<h1>Ws-Chalk</h1>
-<form id="login-register-form">
-	<input placeholder="Your name..." required type=text name="user_name">
-	<button hx-post="/register"
-		hx-trigger="click"
-		hx-ext="json-enc"
-		hx-target="#response"
-		hx-swap="innerHTML">Register</button>
-</form>
-<div id="response"></div>
+<div hx-ext="ws" ws-connect="/ws/{{email}}" class="chat">
+  <h1>Ws-Chalk</h1>
+  <div id="log"></div>
+  <form class="inp" ws-send>
+    <input id="input" type="text" name="message"/>
+    <button id="btn">Send</button>
+  </form>
+</div>
 {% endblock %}
