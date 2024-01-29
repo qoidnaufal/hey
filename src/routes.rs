@@ -1,6 +1,6 @@
 use crate::{
     ws_model::{register_user, ws_connection},
-    RegisteredUsers,
+    Logged, RegisteredUsers,
 };
 use askama::Template;
 use axum::{
@@ -11,11 +11,16 @@ use axum::{
 };
 use serde::Deserialize;
 use uuid::Uuid;
+use validator::Validate;
 
-#[derive(Deserialize)]
+// ------
+
+#[derive(Deserialize, Validate)]
 pub struct LoginRegisterRequest {
     user_name: String,
+    #[validate(email(message = "use valid email"))]
     email: String,
+    #[validate(length(min = 12, message = "password need to be at least 12 characters"))]
     password: String,
 }
 
@@ -34,6 +39,8 @@ pub struct ChatPage {
 #[derive(Template)]
 #[template(path = "loginregister.html")]
 pub struct LoginRegisterPage;
+
+// ----
 
 pub async fn login_register_page() -> impl IntoResponse {
     LoginRegisterPage
@@ -62,25 +69,50 @@ pub async fn register_handler(
     Extension(registered_users): Extension<RegisteredUsers>,
     Json(body): Json<LoginRegisterRequest>,
 ) -> impl IntoResponse {
-    let user_name = body.user_name;
-    let email = body.email;
-    let password = body.password;
-    let uuid = Uuid::new_v4().as_simple().to_string();
+    match body.validate() {
+        Ok(_) => {
+            let user_name = body.user_name;
+            let email = body.email;
+            let password = body.password;
+            let uuid = Uuid::new_v4().as_simple().to_string();
 
-    match register_user(uuid, user_name.clone(), email, password, registered_users).await {
-        Ok(_) => Response::builder()
-            .status(201)
-            .body(
-                LoginRegisterResponse {
-                    response: format!("Hello {}, you've been registered!", user_name),
-                }
-                .into_response(),
-            )
-            .unwrap(),
-        Err(err) => Response::builder()
-            .status(409)
-            .body(LoginRegisterResponse { response: err }.into_response())
-            .unwrap(),
+            match register_user(uuid, user_name.clone(), email, password, registered_users).await {
+                Ok(_) => Response::builder()
+                    .status(201)
+                    .body(
+                        LoginRegisterResponse {
+                            response: format!("Hello {}, you've been registered!", user_name),
+                        }
+                        .into_response(),
+                    )
+                    .unwrap(),
+                Err(err) => Response::builder()
+                    .status(409)
+                    .body(LoginRegisterResponse { response: err }.into_response())
+                    .unwrap(),
+            }
+        }
+        Err(err) => {
+            let err_msg = err
+                .field_errors()
+                .into_values()
+                .map(|e| match e[0].message.clone() {
+                    Some(n) => n,
+                    None => std::borrow::Cow::Borrowed(""),
+                })
+                .collect::<Vec<_>>();
+
+            let response = match err_msg.len() {
+                1 => format!("Invalid input: {}", err_msg[0]),
+                2 => format!("Invalid input: {} & {}", err_msg[0], err_msg[1]),
+                _ => "".to_string(),
+            };
+
+            Response::builder()
+                .status(409)
+                .body(LoginRegisterResponse { response }.into_response())
+                .unwrap()
+        }
     }
 }
 
@@ -92,9 +124,10 @@ pub async fn login_handler(
     let email = body.email;
     let password = body.password;
 
-    match registered_users.read().unwrap().get(&email) {
+    match registered_users.write().unwrap().get_mut(&email) {
         Some(user) => {
             if user_name == user.user_name && password == user.password && email == user.email {
+                user.status = Logged::IN;
                 Response::builder()
                     .status(303)
                     .header("HX-Redirect", email.clone())

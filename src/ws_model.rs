@@ -3,7 +3,7 @@ use futures::{SinkExt, StreamExt};
 use serde::Deserialize;
 use tokio::sync::mpsc;
 
-use crate::{RegisteredUsers, User};
+use crate::{Logged, RegisteredUsers, User};
 
 #[derive(Debug, Deserialize)]
 struct Msg {
@@ -16,7 +16,7 @@ pub async fn ws_connection(
     registered_users: RegisteredUsers,
     mut user: User,
 ) {
-    println!("INFO: New client: {} is connected", email);
+    println!("INFO: New client: {} is LOGGED::{:?}", email, user.status);
 
     let (mut sender, mut receiver) = ws.split();
 
@@ -37,7 +37,7 @@ pub async fn ws_connection(
     registered_users
         .write()
         .unwrap()
-        .insert(email.clone(), user);
+        .insert(email.clone(), user.clone());
 
     let user_name = registered_users
         .read()
@@ -56,8 +56,7 @@ pub async fn ws_connection(
                     .map_err(|err| eprintln!("Unable to deserialize the message: {}", err))
                     .unwrap();
 
-                let message_template = format!(
-                    "<div hx-swap-oob='beforeend:#log'><p>{}: {}</p></div>",
+                let message_template = format!("<div id='bubble' hx-swap-oob='beforeend:#log'><p id='username'>{}</p><p>{}</p></div>",
                     user_name.clone(),
                     deserialized_msg.message.clone()
                 );
@@ -73,16 +72,23 @@ pub async fn ws_connection(
         broadcast_msg(message, &registered_users).await;
     }
 
-    registered_users.write().unwrap().remove(&email);
+    user.status = Logged::OUT;
+    registered_users
+        .write()
+        .unwrap()
+        .insert(email.clone(), user.clone());
+    println!("INFO: Client: {} is LOGGED::{:?}", email, user.status);
 }
 
 pub async fn broadcast_msg(msg: Message, registered_users: &RegisteredUsers) {
     if let Message::Text(message) = msg {
         for (email, user) in registered_users.read().unwrap().iter() {
-            if let Some(tx) = user.sender.clone() {
-                match tx.send(Message::Text(message.clone())) {
-                    Ok(_) => println!("INFO: Sent message: {}", message.clone()),
-                    Err(err) => eprintln!("Unable to send message from: {}, : {}", email, err),
+            if let Logged::IN = user.status {
+                if let Some(tx) = user.sender.clone() {
+                    match tx.send(Message::Text(message.clone())) {
+                        Ok(_) => {}
+                        Err(err) => eprintln!("Unable to send message from: {}, : {}", email, err),
+                    }
                 }
             }
         }
@@ -100,6 +106,7 @@ pub async fn register_user(
         match registered_users.write().unwrap().insert(
             email.clone(),
             User {
+                status: crate::Logged::OUT,
                 uuid,
                 user_name,
                 email,
