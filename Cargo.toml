@@ -1,5 +1,5 @@
 [package]
-name = "ws-chalk"
+name = "shuttle-axum-ws-chat-app"
 version = "0.1.0"
 edition = "2021"
 
