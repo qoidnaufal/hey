@@ -17,8 +17,16 @@ mod ws_model;
 
 type RegisteredUsers = Arc<RwLock<HashMap<String, User>>>;
 
+#[derive(Clone, Debug, Default)]
+pub enum Logged {
+    IN,
+    #[default]
+    OUT,
+}
+
 #[derive(Clone)]
 pub struct User {
+    pub status: Logged,
     pub uuid: String,
     pub user_name: String,
     pub email: String,

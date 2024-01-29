@@ -18,3 +18,4 @@ tokio-stream = "0.1.14"
 tower-http = { version = "0.5.1", features = ["fs"] }
 tracing = "0.1.40"
 uuid = { version = "1.7.0", features = ["v4", "serde"] }
+validator = { version = "0.16.1", features = ["derive"] }

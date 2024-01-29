@@ -43,12 +43,15 @@
     display: flex;
   }
 
-  .nom {
+  #username {
     font-weight: bold;
+    margin-bottom: 0;
   }
 
-  .bubble {
-    line-height: 1.2;
+  #bubble {
+    background-color: black;
+    display: flex;
+    flex-direction: column;
   }
 
   #input {
@@ -64,7 +67,13 @@
     padding: 10px;
   }
 
-  #btn {}
+  #sendbtn {
+    border: none;
+    border-radius: 3px;
+  }
+  #sendbtn:hover {
+    background-color: #ACE1AF;
+  }
 </style>
 {% endblock %}
 
@@ -74,7 +83,7 @@
   <div id="log"></div>
   <form class="inp" ws-send>
     <input id="input" type="text" name="message"/>
-    <button id="btn">Send</button>
+    <button id="sendbtn">Send</button>
   </form>
 </div>
 {% endblock %}
