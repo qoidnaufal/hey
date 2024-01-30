@@ -29,9 +29,13 @@
     gap: 2rem;
   }
 
+  .wrapper {
+    overflow: scroll;
+    flex-grow: 1;
+  }
+
   #log {
     color: white;
-    overflow: scroll;
     flex-grow: 1;
     display: flex;
     flex-direction: column;
@@ -49,7 +53,10 @@
   }
 
   #bubble {
-    background-color: black;
+    background: blue;
+    border: none;
+    border-radius: 3px;
+    width: fit-content;
     display: flex;
     flex-direction: column;
   }
@@ -71,16 +78,27 @@
     border: none;
     border-radius: 3px;
   }
+
   #sendbtn:hover {
     background-color: #ACE1AF;
   }
 </style>
+<script>
+  htmx.on('htmx:wsAfterSend', function() {
+    var input = document.getElementById('input');
+    if (input.value != "") {
+      input.value = "";
+    }
+  });
+</script>
 {% endblock %}
 
 {% block content %}
 <div hx-ext="ws" ws-connect="/ws/{{email}}" class="chat">
   <h1>Ws-Chalk</h1>
-  <div id="log"></div>
+  <div class="wrapper">
+    <div id="log"></div>
+  </div>
   <form class="inp" ws-send>
     <input id="input" type="text" name="message"/>
     <button id="sendbtn">Send</button>

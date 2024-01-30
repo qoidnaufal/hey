@@ -72,6 +72,8 @@ pub async fn ws_connection(
         broadcast_msg(message, &registered_users).await;
     }
 
+    // TODO: manage the login-logout session
+
     user.status = Logged::OUT;
     registered_users
         .write()
