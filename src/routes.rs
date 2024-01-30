@@ -17,6 +17,7 @@ use validator::Validate;
 
 #[derive(Deserialize, Validate)]
 pub struct LoginRegisterRequest {
+    #[validate(length(min = 1, message = "don't you have a name?"))]
     user_name: String,
     #[validate(email(message = "use valid email"))]
     email: String,
@@ -105,6 +106,10 @@ pub async fn register_handler(
             let response = match err_msg.len() {
                 1 => format!("Invalid input: {}", err_msg[0]),
                 2 => format!("Invalid input: {} & {}", err_msg[0], err_msg[1]),
+                3 => format!(
+                    "Invalid input: {} & {} & {}",
+                    err_msg[0], err_msg[1], err_msg[2]
+                ),
                 _ => "".to_string(),
             };
 
