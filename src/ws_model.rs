@@ -72,9 +72,7 @@ pub async fn ws_connection(
         broadcast_msg(message, &registered_users).await;
     }
 
-    // TODO: manage the login-logout session
-
-    user.status = Status::LoggedOUT;
+    user.status = Status::Disconnected;
     registered_users
         .write()
         .unwrap()
@@ -85,7 +83,7 @@ pub async fn ws_connection(
 pub async fn broadcast_msg(msg: Message, registered_users: &RegisteredUsers) {
     if let Message::Text(message) = msg {
         for (email, user) in registered_users.read().unwrap().iter() {
-            if let (Status::LoggedIN, Some(tx)) = (user.status.clone(), user.sender.clone()) {
+            if let (Status::Connected, Some(tx)) = (user.status.clone(), user.sender.clone()) {
                 match tx.send(Message::Text(message.clone())) {
                     Ok(_) => {}
                     Err(err) => eprintln!("Unable to send message from: {}, : {}", email, err),

@@ -11,7 +11,7 @@ use axum::{
 };
 #[allow(unused_imports)]
 use axum_extra::extract::cookie::{Cookie, CookieJar};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use uuid::Uuid;
 use validator::Validate;
 
@@ -56,7 +56,7 @@ pub async fn get_chat_page(
     match jar.get("email").map(|cookie| cookie.value().to_owned()) {
         Some(email) => match registered_users.write().unwrap().get_mut(&email) {
             Some(user) => {
-                user.status = Status::LoggedIN;
+                user.status = Status::Connected;
                 ChatPage { email }.into_response()
             }
             None => LoginRegisterPage.into_response(),
@@ -137,6 +137,7 @@ pub async fn register_handler(
 
 pub async fn login_handler(
     Extension(registered_users): Extension<RegisteredUsers>,
+    // ExtractUserAgent(user_agent): ExtractUserAgent,
     Json(body): Json<LoginRegisterRequest>,
 ) -> impl IntoResponse {
     let user_name = body.user_name;
@@ -146,11 +147,12 @@ pub async fn login_handler(
     match registered_users.write().unwrap().get_mut(&email) {
         Some(user) => {
             if user_name == user.user_name && password == user.password && email == user.email {
-                user.status = Status::LoggedIN;
+                user.status = Status::Connected;
                 Response::builder()
                     .status(303)
                     .header("HX-Redirect", "")
-                    .header(SET_COOKIE, format!("email={}", user.email))
+                    .header(SET_COOKIE, format!("email={}; HttpOnly", user.email))
+                    // .header(SET_COOKIE, format!("user_agent={:?}", user_agent))
                     .body(ChatPage { email }.into_response())
                     .unwrap()
                     .into_response()
@@ -172,3 +174,27 @@ fn login_error(response: String) -> impl IntoResponse {
         .unwrap()
         .into_response()
 }
+
+// pub struct ExtractUserAgent(axum::http::HeaderValue);
+
+// #[axum::async_trait]
+// impl<S> axum::extract::FromRequestParts<S> for ExtractUserAgent
+// where
+//     S: Send + Sync,
+// {
+//     type Rejection = (axum::http::StatusCode, &'static str);
+
+//     async fn from_request_parts(
+//         parts: &mut axum::http::request::Parts,
+//         _state: &S,
+//     ) -> Result<Self, Self::Rejection> {
+//         if let Some(user_agent) = parts.headers.get(axum::http::header::USER_AGENT) {
+//             Ok(ExtractUserAgent(user_agent.clone()))
+//         } else {
+//             Err((
+//                 axum::http::StatusCode::BAD_REQUEST,
+//                 "`User-Agent` header is missing",
+//             ))
+//         }
+//     }
+// }

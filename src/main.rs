@@ -20,9 +20,9 @@ type RegisteredUsers = Arc<RwLock<HashMap<String, User>>>;
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub enum Status {
-    LoggedIN,
+    Connected,
     #[default]
-    LoggedOUT,
+    Disconnected,
 }
 
 #[derive(Clone)]
@@ -38,6 +38,8 @@ pub struct User {
 #[shuttle_runtime::main]
 async fn main() -> shuttle_axum::ShuttleAxum {
     let registered_users = RegisteredUsers::default();
+
+    // TODO: add method to "delete account"
 
     let router = Router::new()
         .route("/register", post(routes::register_handler))
