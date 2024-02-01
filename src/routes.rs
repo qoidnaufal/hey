@@ -1,15 +1,17 @@
 use crate::{
     ws_model::{register_user, ws_connection},
-    Logged, RegisteredUsers,
+    RegisteredUsers, Status,
 };
 use askama::Template;
 use axum::{
     extract::{Json, Path, WebSocketUpgrade},
-    http::Response,
+    http::{header::SET_COOKIE, Response},
     response::IntoResponse,
     Extension,
 };
-use serde::Deserialize;
+#[allow(unused_imports)]
+use axum_extra::extract::cookie::{Cookie, CookieJar};
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use validator::Validate;
 
@@ -41,14 +43,26 @@ pub struct ChatPage {
 #[template(path = "loginregister.html")]
 pub struct LoginRegisterPage;
 
-// ----
+// ------
 
 pub async fn login_register_page() -> impl IntoResponse {
     LoginRegisterPage
 }
 
-pub async fn get_chat_page(Path(email): Path<String>) -> impl IntoResponse {
-    ChatPage { email }
+pub async fn get_chat_page(
+    jar: CookieJar,
+    Extension(registered_users): Extension<RegisteredUsers>,
+) -> impl IntoResponse {
+    match jar.get("email").map(|cookie| cookie.value().to_owned()) {
+        Some(email) => match registered_users.write().unwrap().get_mut(&email) {
+            Some(user) => {
+                user.status = Status::LoggedIN;
+                ChatPage { email }.into_response()
+            }
+            None => LoginRegisterPage.into_response(),
+        },
+        None => LoginRegisterPage.into_response(),
+    }
 }
 
 pub async fn ws_handler(
@@ -132,34 +146,29 @@ pub async fn login_handler(
     match registered_users.write().unwrap().get_mut(&email) {
         Some(user) => {
             if user_name == user.user_name && password == user.password && email == user.email {
-                user.status = Logged::IN;
+                user.status = Status::LoggedIN;
                 Response::builder()
                     .status(303)
-                    .header("HX-Redirect", email.clone())
+                    .header("HX-Redirect", "")
+                    .header(SET_COOKIE, format!("email={}", user.email))
                     .body(ChatPage { email }.into_response())
                     .unwrap()
+                    .into_response()
             } else {
-                Response::builder()
-                    .status(401)
-                    .body(
-                        LoginRegisterResponse {
-                            response:
-                                "Failed to login. The username, email and password didn't match"
-                                    .to_string(),
-                        }
-                        .into_response(),
-                    )
-                    .unwrap()
+                login_error(
+                    "Failed to login. The username, email and password didn't match".to_string(),
+                )
+                .into_response()
             }
         }
-        None => Response::builder()
-            .status(401)
-            .body(
-                LoginRegisterResponse {
-                    response: "You're not yet registered. Register now!".to_string(),
-                }
-                .into_response(),
-            )
-            .unwrap(),
+        None => login_error("You're not yet registered. Register now!".to_string()).into_response(),
     }
+}
+
+fn login_error(response: String) -> impl IntoResponse {
+    Response::builder()
+        .status(401)
+        .body(LoginRegisterResponse { response }.into_response())
+        .unwrap()
+        .into_response()
 }

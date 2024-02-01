@@ -3,7 +3,7 @@ use futures::{SinkExt, StreamExt};
 use serde::Deserialize;
 use tokio::sync::mpsc;
 
-use crate::{Logged, RegisteredUsers, User};
+use crate::{RegisteredUsers, Status, User};
 
 #[derive(Debug, Deserialize)]
 struct Msg {
@@ -16,7 +16,7 @@ pub async fn ws_connection(
     registered_users: RegisteredUsers,
     mut user: User,
 ) {
-    println!("INFO: New client: {} is LOGGED::{:?}", email, user.status);
+    println!("INFO: New client: {} is {:?}", email, user.status);
 
     let (mut sender, mut receiver) = ws.split();
 
@@ -74,23 +74,21 @@ pub async fn ws_connection(
 
     // TODO: manage the login-logout session
 
-    user.status = Logged::OUT;
+    user.status = Status::LoggedOUT;
     registered_users
         .write()
         .unwrap()
         .insert(email.clone(), user.clone());
-    println!("INFO: Client: {} is LOGGED::{:?}", email, user.status);
+    println!("INFO: Client: {} is {:?}", email, user.status);
 }
 
 pub async fn broadcast_msg(msg: Message, registered_users: &RegisteredUsers) {
     if let Message::Text(message) = msg {
         for (email, user) in registered_users.read().unwrap().iter() {
-            if let Logged::IN = user.status {
-                if let Some(tx) = user.sender.clone() {
-                    match tx.send(Message::Text(message.clone())) {
-                        Ok(_) => {}
-                        Err(err) => eprintln!("Unable to send message from: {}, : {}", email, err),
-                    }
+            if let (Status::LoggedIN, Some(tx)) = (user.status.clone(), user.sender.clone()) {
+                match tx.send(Message::Text(message.clone())) {
+                    Ok(_) => {}
+                    Err(err) => eprintln!("Unable to send message from: {}, : {}", email, err),
                 }
             }
         }
@@ -104,11 +102,11 @@ pub async fn register_user(
     password: String,
     registered_users: RegisteredUsers,
 ) -> Result<(), String> {
-    if registered_users.write().unwrap().get(&email).is_none() {
+    if registered_users.read().unwrap().get(&email).is_none() {
         match registered_users.write().unwrap().insert(
             email.clone(),
             User {
-                status: crate::Logged::OUT,
+                status: Status::default(),
                 uuid,
                 user_name,
                 email,
