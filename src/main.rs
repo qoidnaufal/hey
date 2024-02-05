@@ -1,53 +1,54 @@
-use std::{
-    collections::HashMap,
-    sync::{Arc, RwLock},
-};
+use std::{net::SocketAddr, path::PathBuf};
 
 use axum::{
-    extract::ws::Message,
     handler::HandlerWithoutStateExt,
     routing::{get, post},
     Extension, Router,
 };
 
-use serde::{Deserialize, Serialize};
-use tokio::sync::mpsc;
+use axum_extra::extract::cookie::Key;
+use axum_server::tls_rustls::RustlsConfig;
 
+mod auth_model;
+mod page_template;
 mod routes;
 mod ws_model;
 
-type RegisteredUsers = Arc<RwLock<HashMap<String, User>>>;
+#[tokio::main]
+async fn main() -> tokio::io::Result<()> {
+    let registered_users = auth_model::RegisteredUsers::default();
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
-pub enum Status {
-    Connected,
-    #[default]
-    Disconnected,
-}
+    let state = auth_model::CookieState {
+        key: Key::generate(),
+    };
 
-#[derive(Clone)]
-pub struct User {
-    pub status: Status,
-    pub uuid: String,
-    pub user_name: String,
-    pub email: String,
-    pub password: String,
-    pub sender: Option<mpsc::UnboundedSender<Message>>,
-}
-
-#[shuttle_runtime::main]
-async fn main() -> shuttle_axum::ShuttleAxum {
-    let registered_users = RegisteredUsers::default();
-
-    // TODO: add method to "delete account"
+    let config = RustlsConfig::from_pem_file(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("self-signed-certs")
+            .join("certificate.pem"),
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("self-signed-certs")
+            .join("key.pem"),
+    )
+    .await?;
 
     let router = Router::new()
         .route("/register", post(routes::register_handler))
+        .route("/registerpage", get(routes::register_page))
         .route("/login", post(routes::login_handler))
+        .route("/loginpage", get(routes::login_page))
         .route("/", get(routes::get_chat_page))
         .route("/ws/:email", get(routes::ws_handler))
+        .route("/mychat", post(routes::my_chat))
         .layer(Extension(registered_users))
-        .fallback_service(routes::login_register_page.into_service());
+        .with_state(state)
+        .fallback_service(routes::register_page.into_service());
 
-    Ok(router.into())
+    let addr = SocketAddr::from(([0, 0, 0, 0], 6969));
+
+    axum_server::bind_rustls(addr, config)
+        .serve(router.into_make_service())
+        .await?;
+
+    Ok(())
 }

@@ -21,6 +21,14 @@
       Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
   }
 
+  p {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
+      Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+    color: green;
+  }
+
+  .dashboard {}
+
   .chat {
     height: 90vh;
     display: flex;
@@ -30,8 +38,30 @@
   }
 
   .wrapper {
+    display: flex;
+    flex-direction: row;
+    flex-grow: 1;
+  }
+
+  .chatwrapper {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+  }
+
+  .logwrapper {
     overflow: scroll;
     flex-grow: 1;
+  }
+
+  .userwrapper {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 0.3;
+    background-color: #36454F;
+    max-width: 20vw;
+    min-width: 20%;
+    padding: 3px 5px 3px;
   }
 
   #log {
@@ -52,13 +82,19 @@
     margin-bottom: 0;
   }
 
-  #bubble {
+  #recvchat {
     background: blue;
     border: none;
     border-radius: 3px;
     width: fit-content;
     display: flex;
     flex-direction: column;
+  }
+
+  #mychat {
+    display: flex;
+    flex-direction: column;
+    align-self: flex-end;
   }
 
   #input {
@@ -72,6 +108,7 @@
     font-size: 16px;
     color: white;
     padding: 10px;
+    margin-left: 1em;
   }
 
   #sendbtn {
@@ -82,10 +119,43 @@
   #sendbtn:hover {
     background-color: #ACE1AF;
   }
+
+  #usercontainer {
+    display: flex;
+    flex-grow: 1;
+    flex-direction: column;
+  }
+
+  #searchform {
+    display: flex;
+    flex-direction: row;
+  }
+
+  #searchbar {
+    border-radius: 5px;
+    border: none;
+    flex-grow: 1;
+    height: 1.7em;
+    max-width: 20vw;
+    font-size: 12px;
+  }
 </style>
 <script>
-  htmx.on('htmx:wsAfterSend', function() {
+  htmx.on('htmx:wsBeforeSend', function(ev) {
     var input = document.getElementById('input');
+    var msg = JSON.parse(ev.detail.message);
+    console.log(msg.message);
+    
+    fetch("https://" + window.location.host + "/mychat", {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json, text/plain, */*',
+        'Content-Type': 'application/json',
+        'HX-Target': '#log'
+      },
+      body: JSON.stringify({message: `${msg.message}`})
+    });
+    
     if (input.value != "") {
       input.value = "";
     }
@@ -95,13 +165,24 @@
 
 {% block content %}
 <div hx-ext="ws" ws-connect="/ws/{{email}}" class="chat">
-  <h1>Ws-Chalk</h1>
   <div class="wrapper">
-    <div id="log"></div>
+    <div class="userwrapper">
+      <div class="dashboard">
+        <h1>HEY!</h1>
+      </div>
+      <div id="usercontainer">
+        <form id="searchform"><input id="searchbar" type="text" name="user_name" /></form>
+      </div>
+    </div>
+    <div class="chatwrapper">
+      <div class="logwrapper">
+        <div id="log"></div>
+      </div>
+      <form class="inp" ws-send>
+        <input id="input" type="text" name="message" />
+        <button id="sendbtn">Send</button>
+      </form>
+    </div>
   </div>
-  <form class="inp" ws-send>
-    <input id="input" type="text" name="message"/>
-    <button id="sendbtn">Send</button>
-  </form>
 </div>
 {% endblock %}
