@@ -6,54 +6,56 @@
 <script src="https://unpkg.com/htmx.org/dist/ext/json-enc.js"></script>
 <script src="https://unpkg.com/htmx.org/dist/ext/response-targets.js"></script>
 <style>
-	html,body {
+	html, body {
 	  height:100%;
-	  width:100%;
 	  margin:auto;
+		overflow: hidden;
 	  background-color: #222222;
 	}
-	body , body {
-	  display:table;
-	  width: 27%;
-		margin-top: 30vh;
+	body, body {
+	  display: flex;
+	  justify-content: center;
+		align-items: center;
 	}
-	.container {
+	#registerpage, #loginpage {
 	  display: flex;
 	  flex-direction: column;
-	  margin:auto;
 	  background-color: black;
-	  padding: 10px 10px 20px 10px;
-	  border-radius: 10px;
+	  padding: 10px 40px 20px 40px;
+	  border-radius: 13px;
+		width: 27vw;
+		min-height: 17vw;
 	}
 	#login-register-form {
 	  display: flex;
 	  flex-direction: column;
 	}
+	#switch {
+		color: white;
+		text-align: center;
+	}
 	button {
 		text-align: center;
-		width: 60px;
-	  height: 25px;
+	  height: 30px;
 	  border-radius: 10px;
 	  border: none;
-	  margin-top: 0.7em;
+	  margin-top: 1.3em;
 	  background-color: #0CAFFF;
+		flex-grow: 1;
 	}
 	button:hover {
 	  background-color: #ACE1AF;
 	}
-	#submit-button {
-		width: auto;
-		justify-content: center;
-		display: block;
-	}
 	input {
-	  margin-top: 0.3em;
+		flex-grow: 1;
+	  margin-top: 0.7em;
 	  height: 30px;
 	  background-color: #E5E4E2;
+		font-size: 12px;
 	}
 	input:focus {
 	  background-color: white;
-	}
+	x-get}
 	input:hover {
 	  background-color: white;
 	}
@@ -62,28 +64,27 @@
 		text-align: center;
 	}
 	#response {
-		font-size: 73%;
+		font-size: 85%;
+	}
+	a {
+		color: #ACE1AF;
 	}
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container">
-	<h1>Welcome to Ws-Chalk</h1>
+<div id="registerpage">
+	<h1>Register</h1>
 	<form id="login-register-form" hx-ext="json-enc, response-targets">
 		<input placeholder="Your name..." required type="text" name="user_name">
 		<input placeholder="Your email..." required type="email" name="email">
 	  <input placeholder="Your password..." required type="password" name="password">
-		<div id="submit-button">
-			<button hx-post="/register"
-				hx-target="#response"
-				hx-target-error="#response"
-				hx-swap="innerHTML">Register</button>
-		  <button hx-post="/login"
-				hx-target-error="#response"
-				hx-swap="innerHTML">Login</button>
-		</div>
-		<div id="response"></div>
+		<button hx-post="/register"
+			hx-target="#response"
+			hx-target-error="#response"
+			hx-swap="innerHTML">Register</button>			
+		<div id="response"></div>				
 	</form>
+	<p id="switch" hx-boost="true">Already have an account? <a href="/loginpage" hx-target="#registerpage" hx-swap="outerHTML" hx-push-url="false">Login</a> now!</p>	
 </div>
 {% endblock %}

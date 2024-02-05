@@ -1,0 +1,12 @@
+<div id="loginpage">
+	<h1>Login</h1>
+	<form id="login-register-form" hx-ext="json-enc, response-targets">
+		<input placeholder="Your email..." required type="email" name="email">
+	  <input placeholder="Your password..." required type="password" name="password">
+	  <button hx-post="/login"
+			hx-target-error="#response"
+			hx-swap="innerHTML">Login</button>			
+		<div id="response"></div>    
+	</form>
+	<p id="switch" hx-boost="true">Don't have an account? <a href="/registerpage" hx-target="#loginpage" hx-swap="outerHTML" hx-push-url="false">Register</a> now!</p>	
+</div>
