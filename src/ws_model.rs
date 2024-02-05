@@ -3,7 +3,7 @@ use futures::{SinkExt, StreamExt};
 use serde::Deserialize;
 use tokio::sync::mpsc;
 
-use crate::auth_model::{RegisteredUsers, Status, User};
+use crate::auth_model::{ConnectedUser, Status, UserData};
 
 #[derive(Debug, Deserialize)]
 struct Msg {
@@ -13,10 +13,21 @@ struct Msg {
 pub async fn ws_connection(
     ws: WebSocket,
     email: String,
-    registered_users: RegisteredUsers,
-    mut user: User,
+    connected_user: ConnectedUser,
+    user_data: UserData,
 ) {
-    println!("[INFO] New client: {} is {:?}", email, user.status);
+    let mut user_state = connected_user
+        .write()
+        .unwrap()
+        .get_mut(&email)
+        .unwrap()
+        .clone();
+
+    println!(
+        "[INFO] New client: {} is {:?}",
+        email,
+        user_state.status.clone()
+    );
 
     let (mut sender, mut receiver) = ws.split();
 
@@ -32,20 +43,9 @@ pub async fn ws_connection(
         sender.close().await.unwrap();
     });
 
-    user.sender = Some(tx);
+    user_state.sender = Some(tx);
 
-    registered_users
-        .write()
-        .unwrap()
-        .insert(email.clone(), user.clone());
-
-    let user_name = registered_users
-        .read()
-        .unwrap()
-        .get(&email)
-        .unwrap()
-        .user_name
-        .clone();
+    let user_name = user_data.user_name;
 
     while let Some(Ok(message)) = receiver.next().await {
         let message = match message {
@@ -66,21 +66,17 @@ pub async fn ws_connection(
             _ => message,
         };
 
-        broadcast_msg(message, &registered_users, &email).await;
+        broadcast_msg(message, &connected_user, &email).await;
     }
 
-    user.status = Status::Disconnected;
-    registered_users
-        .write()
-        .unwrap()
-        .insert(email.clone(), user.clone());
+    user_state.status = Status::Disconnected;
 
-    println!("[INFO] Client: {} is {:?}", email, user.status);
+    println!("[INFO] Client: {} is {:?}", email, user_state.status);
 }
 
-async fn broadcast_msg(msg: Message, registered_users: &RegisteredUsers, email: &String) {
+async fn broadcast_msg(msg: Message, connected_user: &ConnectedUser, email: &String) {
     if let Message::Text(message) = msg {
-        for (other_email, user) in registered_users.read().unwrap().iter() {
+        for (other_email, user) in connected_user.read().unwrap().iter() {
             if let (Status::Connected, Some(tx)) = (user.status.clone(), user.sender.clone()) {
                 if email != other_email {
                     match tx.send(Message::Text(message.clone())) {
@@ -90,38 +86,5 @@ async fn broadcast_msg(msg: Message, registered_users: &RegisteredUsers, email: 
                 }
             }
         }
-    }
-}
-
-pub async fn register_user(
-    uuid: String,
-    user_name: String,
-    email: String,
-    password: String,
-    registered_users: RegisteredUsers,
-) -> Result<(), String> {
-    if registered_users.read().unwrap().get(&email).is_none() {
-        match registered_users.write().unwrap().insert(
-            email.clone(),
-            User {
-                status: Status::default(),
-                uuid,
-                user_name,
-                email,
-                password,
-                sender: None,
-            },
-        ) {
-            None => Ok(()),
-            Some(n) => Err(format!(
-                "User with email \"{}\" is already registered",
-                n.email
-            )),
-        }
-    } else {
-        Err(format!(
-            "User with email \"{}\" is already registered",
-            email
-        ))
     }
 }

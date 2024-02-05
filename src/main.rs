@@ -10,15 +10,22 @@ use axum_extra::extract::cookie::Key;
 use axum_server::tls_rustls::RustlsConfig;
 
 mod auth_model;
+mod db;
 mod page_template;
 mod routes;
 mod ws_model;
 
 #[tokio::main]
-async fn main() -> tokio::io::Result<()> {
-    let registered_users = auth_model::RegisteredUsers::default();
+async fn main() -> std::io::Result<()> {
+    let app_state = auth_model::AppState {
+        db: db::Database::init("hey".to_string(), "users".to_string())
+            .await
+            .map_err(|err| eprintln!("{}", err))
+            .unwrap(),
+        user_con: auth_model::ConnectedUser::default(),
+    };
 
-    let state = auth_model::CookieState {
+    let cookie_key = auth_model::CookieKey {
         key: Key::generate(),
     };
 
@@ -40,8 +47,8 @@ async fn main() -> tokio::io::Result<()> {
         .route("/", get(routes::get_chat_page))
         .route("/ws/:email", get(routes::ws_handler))
         .route("/mychat", post(routes::my_chat))
-        .layer(Extension(registered_users))
-        .with_state(state)
+        .layer(Extension(app_state))
+        .with_state(cookie_key)
         .fallback_service(routes::register_page.into_service());
 
     let addr = SocketAddr::from(([0, 0, 0, 0], 6969));
