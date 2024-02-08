@@ -3,15 +3,13 @@ use serde::Deserialize;
 
 #[derive(Template)]
 #[template(path = "loginregisterresponse.html")]
-pub struct LoginRegisterResponse {
-    pub response: String,
+pub struct LoginRegisterResponse<S: std::fmt::Display> {
+    pub response: S,
 }
 
 #[derive(Template)]
 #[template(path = "index.html")]
-pub struct ChatPage {
-    pub email: String,
-}
+pub struct ChatPage;
 
 #[derive(Template)]
 #[template(path = "registerpage.html")]
