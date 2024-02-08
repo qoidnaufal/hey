@@ -20,7 +20,7 @@ pub enum Status {
     Disconnected,
 }
 
-#[derive(Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct UserData {
     pub user_name: String,
     pub uuid: String,
@@ -28,8 +28,10 @@ pub struct UserData {
     pub password: String,
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Debug)]
 pub struct UserState {
+    pub user_name: String,
+    pub uuid: String,
     pub status: Status,
     pub sender: Option<UnboundedSender<Message>>,
 }
@@ -50,10 +52,17 @@ pub struct LoginRequest {
     pub password: String,
 }
 
+// #[derive(Debug, Serialize, Deserialize)]
+// pub struct TokenClaims {
+//     pub sub: String,
+//     pub iat: usize,
+//     pub exp: usize,
+// }
+
 #[derive(Clone)]
 pub struct AppState {
     pub db: db::Database,
-    pub user_con: ConnectedUser,
+    pub con: ConnectedUser,
 }
 
 #[derive(Clone)]

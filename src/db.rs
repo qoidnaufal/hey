@@ -4,7 +4,7 @@ use surrealdb::{
     Error, Surreal,
 };
 
-use crate::auth_model::{LoginRequest, UserData};
+use crate::auth_model::UserData;
 
 #[derive(Clone)]
 pub struct Database {
@@ -14,7 +14,7 @@ pub struct Database {
 }
 
 impl Database {
-    pub async fn init(name_space: String, db_name: String) -> Result<Self, Error> {
+    pub async fn init() -> Result<Self, Error> {
         let client = Surreal::new::<Ws>("0.0.0.0:8000").await?;
         client
             .signin(Root {
@@ -23,25 +23,19 @@ impl Database {
             })
             .await?;
 
-        //            -- "hey" --     -- "user-data" --
-        client.use_ns(&name_space).use_db(&db_name).await?;
+        client.use_ns("hey").use_db("users").await?;
 
         Ok(Self {
             client,
-            name_space,
-            db_name,
+            name_space: "hey".to_string(),
+            db_name: "users".to_string(),
         })
     }
 
-    pub async fn register_user(
-        &self,
-        table_name: &'static str,
-        uuid: String,
-        new_user: UserData,
-    ) -> Result<(), Error> {
+    pub async fn register_user(&self, uuid: String, new_user: UserData) -> Result<(), Error> {
         let registered_user = self
             .client
-            .create::<Option<UserData>>((table_name, uuid.clone()))
+            .create::<Option<UserData>>(("user_data", uuid.clone()))
             .content(new_user.clone())
             .await;
 
@@ -51,8 +45,15 @@ impl Database {
         }
     }
 
-    pub async fn get_user_by_id(&self, table_name: &'static str, uuid: String) -> Option<UserData> {
-        let get_user = self.client.select((table_name, uuid)).await;
+    pub async fn _get_all_user(&self) -> Result<Vec<UserData>, Error> {
+        match self.client.select("user_data").await {
+            Ok(user_data) => Ok(user_data),
+            Err(err) => Err(err),
+        }
+    }
+
+    pub async fn get_user_by_id(&self, uuid: &String) -> Option<UserData> {
+        let get_user = self.client.select(("user_data", uuid)).await;
 
         match get_user {
             Ok(maybe_user) => maybe_user,
@@ -60,33 +61,27 @@ impl Database {
         }
     }
 
-    pub async fn get_user_by_query(
-        &self,
-        table_name: &'static str,
-        email: String,
-        password: String,
-    ) -> Result<Option<String>, Error> {
+    pub async fn get_user_by_email(&self, email: String) -> Result<Option<UserData>, Error> {
         match self
             .client
-            .query("SELECT uuid FROM type::table($table) WHERE email = $email AND password = $password")
-            .bind(("table", table_name))
-            .bind(LoginRequest { email, password })
+            .query("SELECT * FROM type::table($table) WHERE email = $email")
+            .bind(("table", "user_data"))
+            .bind(("email", email))
             .await
         {
-            Ok(mut maybe_user) => maybe_user.take::<Option<String>>("uuid"),
+            Ok(mut maybe_user) => maybe_user.take::<Option<UserData>>(0),
             Err(err) => Err(err),
         }
     }
 
     pub async fn _update_user(
         &self,
-        table_name: &'static str,
         uuid: String,
         update_data: UserData,
     ) -> Result<Option<UserData>, Error> {
         let update_user = self
             .client
-            .update((table_name, uuid.clone()))
+            .update(("user_data", uuid.clone()))
             .merge(update_data)
             .await;
 
@@ -101,10 +96,10 @@ impl Database {
         }
     }
 
-    pub async fn _delete_user(&self, table_name: &'static str, uuid: String) -> Result<(), Error> {
+    pub async fn _delete_user(&self, uuid: String) -> Result<(), Error> {
         match self
             .client
-            .delete::<Option<UserData>>((table_name, uuid))
+            .delete::<Option<UserData>>(("user_data", uuid))
             .await
         {
             Ok(_) => Ok(()),

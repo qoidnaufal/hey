@@ -3,31 +3,21 @@ use futures::{SinkExt, StreamExt};
 use serde::Deserialize;
 use tokio::sync::mpsc;
 
-use crate::auth_model::{ConnectedUser, Status, UserData};
+use crate::auth_model::{ConnectedUser, Status};
 
 #[derive(Debug, Deserialize)]
 struct Msg {
     message: String,
 }
 
-pub async fn ws_connection(
-    ws: WebSocket,
-    email: String,
-    connected_user: ConnectedUser,
-    user_data: UserData,
-) {
+pub async fn ws_connection(ws: WebSocket, email: String, connected_user: ConnectedUser) {
     let mut user_state = connected_user
         .write()
         .unwrap()
         .get_mut(&email)
         .unwrap()
         .clone();
-
-    println!(
-        "[INFO] New client: {} is {:?}",
-        email,
-        user_state.status.clone()
-    );
+    println!("[INF] New client: {} is {:?}", email, user_state.status);
 
     let (mut sender, mut receiver) = ws.split();
 
@@ -44,8 +34,11 @@ pub async fn ws_connection(
     });
 
     user_state.sender = Some(tx);
-
-    let user_name = user_data.user_name;
+    connected_user
+        .write()
+        .unwrap()
+        .insert(email.clone(), user_state.clone())
+        .unwrap();
 
     while let Some(Ok(message)) = receiver.next().await {
         let message = match message {
@@ -54,10 +47,13 @@ pub async fn ws_connection(
                     .map_err(|err| eprintln!("Unable to deserialize the message: {}", err))
                     .unwrap();
 
-                println!("[MESSAGE] {} send: {}", user_name, deserialized_msg.message);
+                println!(
+                    "[RCV] received message from: {} \n[MSG] {}",
+                    user_state.user_name, deserialized_msg.message
+                );
 
                 let message_template = format!("<div id='recvchat' hx-swap-oob='beforeend:#log'><p id='username'>{}</p><p>{}</p></div>",
-                    user_name,
+                    user_state.user_name,
                     deserialized_msg.message
                 );
 
@@ -66,22 +62,27 @@ pub async fn ws_connection(
             _ => message,
         };
 
-        broadcast_msg(message, &connected_user, &email).await;
+        broadcast_msg(message, &email, &connected_user).await;
     }
 
     user_state.status = Status::Disconnected;
+    connected_user
+        .write()
+        .unwrap()
+        .insert(email.clone(), user_state.clone());
 
-    println!("[INFO] Client: {} is {:?}", email, user_state.status);
+    println!("[INF] Client: {} is {:?}", email, user_state.status);
 }
 
-async fn broadcast_msg(msg: Message, connected_user: &ConnectedUser, email: &String) {
+async fn broadcast_msg(msg: Message, email: &String, connected_user: &ConnectedUser) {
     if let Message::Text(message) = msg {
-        for (other_email, user) in connected_user.read().unwrap().iter() {
-            if let (Status::Connected, Some(tx)) = (user.status.clone(), user.sender.clone()) {
-                if email != other_email {
-                    match tx.send(Message::Text(message.clone())) {
-                        Ok(_) => (),
-                        Err(err) => eprintln!("Unable to send message from: {}, : {}", email, err),
+        for (_, user) in connected_user.read().unwrap().iter() {
+            if let Some(tx) = user.sender.clone() {
+                // this is what being sent back from the server
+                match tx.send(Message::Text(message.clone())) {
+                    Ok(_) => (),
+                    Err(err) => {
+                        eprintln!("Unable to send message from: {}, : {}", email, err)
                     }
                 }
             }

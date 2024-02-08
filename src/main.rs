@@ -17,17 +17,22 @@ mod ws_model;
 
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
-    let app_state = auth_model::AppState {
-        db: db::Database::init("hey".to_string(), "users".to_string())
+    let app_state = std::sync::Arc::new(auth_model::AppState {
+        db: db::Database::init()
             .await
-            .map_err(|err| eprintln!("{}", err))
-            .unwrap(),
-        user_con: auth_model::ConnectedUser::default(),
-    };
+            .map_err(|err| std::io::Error::other(format!("{}", err)))?,
+        con: auth_model::ConnectedUser::default(),
+    });
 
-    let cookie_key = auth_model::CookieKey {
-        key: Key::generate(),
-    };
+    let key = include_str!("../secrets/key.txt")
+        .trim()
+        .split(",")
+        .map(|str| str.parse::<u8>().unwrap())
+        .collect::<Vec<_>>();
+
+    let key = Key::from(key.as_slice());
+
+    let cookie_key = auth_model::CookieKey { key };
 
     let config = RustlsConfig::from_pem_file(
         PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -45,7 +50,7 @@ async fn main() -> std::io::Result<()> {
         .route("/login", post(routes::login_handler))
         .route("/loginpage", get(routes::login_page))
         .route("/", get(routes::get_chat_page))
-        .route("/ws/:email", get(routes::ws_handler))
+        .route("/ws", get(routes::ws_handler))
         .route("/mychat", post(routes::my_chat))
         .layer(Extension(app_state))
         .with_state(cookie_key)
